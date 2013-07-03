@@ -1,19 +1,19 @@
 (function(){
 
 	//Maximum worker threads
-	const _threads = 12;
+	var _threads = 12;
 	
 	//Generations (number of shapes)
-	const _generations = 2500;
+	var _generations = 3000;
 		
 	//Full Arc in radians
-	const _360 = 2 * Math.PI;
+	var _360 = 2 * Math.PI;
 
 	//Maximum dimensions for random shapes
-	const _guesswidth  = 30;
-	const _guessheight = 30;
-	const _guessradius = 10;
-	const _guesslength = 50;
+	var _guesswidth  = 30;
+	var _guessheight = 30;
+	var _guessradius = 10;
+	var _guesslength = 50;
 
 	//Image sizes variables
 	var _width;
@@ -168,10 +168,10 @@
 	//Puts a shape in the SVG document
 	var mapLayer = 0;
 	var mapShape = function(shape) {
-    	var tag = document.createElementNS( "http://www.w3.org/2000/svg", shape.tag );
-    	for(p in shape) { if(p!="tag" && shape.hasOwnProperty(p)) tag.setAttribute(p,shape[p]); }
-    	tag.setAttribute("id","shape"+(mapLayer++));
-    	_svg.appendChild( tag );
+		var tag = document.createElementNS( "http://www.w3.org/2000/svg", shape.tag );
+		for(var p in shape) { if(p!="tag" && shape.hasOwnProperty(p)) tag.setAttribute(p,shape[p]); }
+		tag.setAttribute("id","shape"+(mapLayer++));
+		_svg.appendChild( tag );
 	};
 
 	//------------------------------------------------------------------
@@ -307,7 +307,7 @@
 				}
 			} else {
 				//Process is finished.
-				delete mimicworkers;
+				//if(mimicworkers) delete mimicworkers;
 				var end = (new Date()) - 0;
 				console.log((end - start)/1000);
 				for(var bs=0,bsl=bestshapes.length;bs<bsl;bs++) mapShape(JSON.parse(bestshapes[bs]));
@@ -433,47 +433,6 @@
 			_size = _size||_width*_height*4;
 		}
 		
-	
-
-		//- - - - - - - - - - - - - - - - - - - -		
-		//Loads the diamond cropping image
-		var loadCrop = function(src,callback) {
-			var crop = new Image(), c;
-			_crop = true;
-			crop.onload = function() {
-				initDimensions(crop.width,crop.height);
-				c = initCanvas("h").getContext("2d");
-				c.drawImage(crop, 0, 0);
-				callback();
-			}
-			crop.src = src;
-		}
-
-		
-		//- - - - - - - - - - - - - - - - - - - -
-		//Loads the thumbnail for fitness comparissons 
-		var loadThumb = function(src) {
-			var thumb = new Image(), c;
-			thumb.onload = function() {
-				initDimensions(thumb.width,thumb.height);
-				c = initContext(initCanvas("c"));
-				c.drawImage(thumb, 0, 0);
-				c.drawImage(document.getElementById("h"),0,0,_width,_height);
-
-				//Start the process!
-				getMimic(mapCopy(c), function(){
-					console.log('All done!');
-				});
-			}
-			thumb.src = src;
-		}
-		
-		/*
-		loadCrop(crop,function(){
-			loadThumb(small);
-		});
-		*/
-
 		//- - - - - - - - - - - - - - - - - - - -
 		//Loads the thumbnail for fitness comparissons 
 		var loadImage = function(src) {
@@ -482,14 +441,13 @@
 				initDimensions(image.width,image.height);
 				c = initContext(initCanvas("c"));
 				c.drawImage(image, 0, 0);
-				c.drawImage(document.getElementById("h"),0,0,_width,_height);
 				var data = c.getImageData(0, 0, _width,_height);
 				getColors(data,function(colors) {
 					_colors   = colors;
 					_colornum = colors.length;
 					_scale = parseInt(window.innerHeight/_height);
-				    _svg.setAttribute( "width", _scale*_width);
-				    _svg.setAttribute( "height", _scale*_height);
+					_svg.setAttribute( "width", _scale*_width);
+					_svg.setAttribute( "height", _scale*_height);
 					_svg.style.display = "none";
 					getMimic(mapCopy(c), function(){
 						_svg.style.display = "block";
@@ -501,48 +459,11 @@
 			image.src = src;
 		}		
 		
-		if(!crop) document.getElementById('h').style.display="none";		
-		
 		loadImage(small);
 	
 	}
 
-	//Load the mondrian image, Start the process
+	//Load the hardcoded image, Start the process
 	mimic('temp/daey_fl_2005-01-01.jpg');
 	
 })();
-
-		/*
-		//- - - - - - - - - - - - - - - - - - - -
-		//loads the image to get the palette in a canvas element
-		var loadImage = function(src,callback) {
-			var img = new Image();
-			img.onload = function() {
-				var C = document.getElementById("c");
-				var c = C.getContext('2d');
-				C.width = img.width;
-				C.height = img.height;
-				c.drawImage(img, 0, 0);
-				//Get the palette
-				var data = c.getImageData(0, 0, img.width, img.height);
-				getColors(data,function(colors) {
-					_colors   = colors;
-					_colornum = colors.length;
-					var P = document.getElementById("p");
-					var p = P.getContext('2d');
-					P.width = _colornum*52;
-					P.height = 240;
-					for(var i=0,j=[];i<_colornum;i++) {
-						var k = 'rgba('+[_colors[i].r,_colors[i].g,_colors[i].b].join(',')+',1.0)';
-						p.fillStyle=k;
-						p.fillRect(i*52,0,i*52+50,i*52+240);
-						j.push(k);
-					}
-					console.log(j.join(' '));
-						 
-					callback();					
-				});
-			}
-			img.src = src;
-		}
-		*/	
