@@ -1,7 +1,7 @@
 (function(){
 
 	//Maximum worker threads
-	var _threads = 12;
+	var _threads = 1;
 	
 	//Generations (number of shapes)
 	var _generations = 3000;
@@ -129,13 +129,12 @@
 
 		var o = getGridCoords();
 		var c = _colorshex[rand1(_colornum)];
-	
 		switch(_shape) {
 			case 0:	
 				//Circle
 				var r = rand2(1,_guessradius);
 				context.beginPath();
-				context.fillStyle = c;
+				context.fillStyle = "#"+ c;
 				context.arc(o.x, o.y, r, 0, _360, false);
 				context.closePath();
 				context.fill();
@@ -149,7 +148,7 @@
 				context.beginPath();
 				context.moveTo(o.x,o.y);
 				context.lineTo(p.x,p.y);
-				context.strokeStyle = c;
+				context.strokeStyle = "#" + c;
 				context.stroke();
 				return JSON.stringify({"tag":"line","x1":o.x*_scale,"y1":o.y*_scale,"x2":p.x*_scale,"y2":p.y*_scale,"stroke":c,"stroke-width":1*_scale});
 			break;
@@ -157,7 +156,7 @@
 				//Rectangle
 				var w = rand2(2,_guessradius*2);
 				var h = rand2(2,_guessradius*2);
-				context.fillStyle = c;
+				context.fillStyle = "#" + c;
 				context.fillRect(o.x, o.y, w, h);
 				return JSON.stringify({"tag":"rect","x":o.x*_scale,"y":o.y*_scale,"width":w*_scale,"height":h*_scale,"fill":c,"stroke":"none"});
 			break;
@@ -169,8 +168,21 @@
 	var mapLayer = 0;
 	var mapShape = function(shape) {
 		var tag = document.createElementNS( "http://www.w3.org/2000/svg", shape.tag );
-		for(var p in shape) { if(p!="tag" && shape.hasOwnProperty(p)) tag.setAttribute(p,shape[p]); }
+		tag.setAttribute("cx",shape.cx);
+		tag.setAttribute("cy",shape.cy);
+		tag.setAttribute("r",shape.r);
+		tag.setAttribute("style","fill:"+shape.fill+"; stroke=none;");
 		tag.setAttribute("id","shape"+(mapLayer++));
+		_svg.appendChild( tag );
+	};
+
+	//------------------------------------------------------------------
+	//Puts a shape in the SVG document
+	var mapLayer2 = 0;
+	var mapShape2 = function(shape) {
+		var tag = document.createElementNS( "http://www.w3.org/2000/svg", shape.tag );
+		for(var p in shape) { if(p!="tag" && shape.hasOwnProperty(p)) tag.setAttribute(p,shape[p]); }
+		tag.setAttribute("id","shape"+(mapLayer2++));
 		_svg.appendChild( tag );
 	};
 
@@ -203,8 +215,18 @@
 		var o = {x:x,y:y};
 		return o;		
 	}
-	
 
+	var drawPallete = function(colors) {
+		var p = document.getElementById('p');
+		var h = "";
+		var w = Math.floor((1 / colors.length) * 100);
+		console.log(colors)
+		for(var i=0;i<colors.length;i++) {
+			h += '<div style="margin:0px;padding:0px;float:left;width:'+w+'%;background-color:#'+colors[i].color+';height:200px;">&nbsp;</div>';
+		}
+		p.innerHTML = h;
+	}
+	
 	//------------------------------------------------------------------
 	//Genetic Algorithm Mimic Workers
 	var getMimic = function(imagedata,callback) {
@@ -301,7 +323,7 @@
 			generation++;
 			if(generation<_generations) {
 				for(var w=0;w<_threads; w++) {
-					putShape(contexts[w],cropcanvas);
+					shapes[w].push(putShape(contexts[w]));
 					var messagedata = {'type':'diff','imagedata':contexts[w].getImageData(0, 0, _width,_height)};
 					mimicworkers[w].postMessage(messagedata);
 				}
@@ -310,7 +332,10 @@
 				//if(mimicworkers) delete mimicworkers;
 				var end = (new Date()) - 0;
 				console.log((end - start)/1000);
-				for(var bs=0,bsl=bestshapes.length;bs<bsl;bs++) mapShape(JSON.parse(bestshapes[bs]));
+				console.log(bestshapes.length);
+				for(var bs=0,bsl=bestshapes.length;bs<bsl;bs++) {
+					mapShape(JSON.parse(bestshapes[bs]));
+				}
 				callback();
 			}
 		};
@@ -383,26 +408,18 @@
 			var image = context.getImageData(0, 0, _width, _height);
 			var data = image.data;
 			var cols = [];
-			var p = initContext(initCanvas("p",_colornum*52,_height));
 			var m = initContext(initCanvas("m"));
 			if (_colornum && typeof _colors[0] === "string") {
 				_colorshex = _colors;
 				for(var c=0;c<_colornum;c++) {
 					var s = _colors[c].substr(1);
 					cols.push({r:parseInt(s.substr(0,2),16),g:parseInt(s.substr(2,2),16),b:parseInt(s.substr(4,2),16)});
-					p.fillStyle=_colors[c];
-					p.fillRect(c*52,0,c*52+50,c*52+240);
 				}
 			} else {
 				cols = _colors;
 				for(var c=0;c<_colornum;c++) {
 					_colorshex[c] = _colors[c].color;
 				}
-			}
-
-			for(var i=0;i<_colornum;i++) {
-				p.fillStyle=_colorshex[i];
-				p.fillRect(i*52,0,i*52+50,i*52+_height);
 			}
 			
 			var sq = function(x){return x*x;};
@@ -439,16 +456,17 @@
 			var image = new Image(), c;
 			image.onload = function() {
 				initDimensions(image.width,image.height);
-				c = initContext(initCanvas("c"));
+				var c = initContext(initCanvas("c"));
 				c.drawImage(image, 0, 0);
 				var data = c.getImageData(0, 0, _width,_height);
 				getColors(data,function(colors) {
 					_colors   = colors;
 					_colornum = colors.length;
 					_scale = parseInt(window.innerHeight/_height);
+					drawPallete(colors);
 					_svg.setAttribute( "width", _scale*_width);
 					_svg.setAttribute( "height", _scale*_height);
-					_svg.style.display = "none";
+					//_svg.style.display = "none";
 					getMimic(mapCopy(c), function(){
 						_svg.style.display = "block";
 						console.log('All done!');
@@ -464,6 +482,14 @@
 	}
 
 	//Load the hardcoded image, Start the process
-	mimic('temp/daey_fl_2005-01-01.jpg');
+	var query = window.location.toString()
+	query = query.substr(query.indexOf('?'));
+	if(query.indexOf("?file=")!==0) {
+		alert("Please enter a filename like /?file=[filename]");
+	} else {
+		query=query.substr(query.indexOf("=")+1)
+	}
+	alert("Staring " + _generations + " generations for file 'temp/" + query + "'");
+	mimic('temp/'+query);
 	
 })();
